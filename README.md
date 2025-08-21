@@ -27,3 +27,7 @@ At temp=0.5, fluctuating (I am not sure about interpretation)
 3. Setting the right temperature for genome generation (check evo2.generate() arguments)   
 4. Scaling the results to other genomes (currently available CH3V2)
 5. Token sizes / lengths of generation and their impact   
+
+### Side notes
+I did not upload the genome provided by Matteo Ungaro here (I need to ask for permission) so you cannot reproduce the code.    
+However, if you follow the instructions to get evo2 on the notebook you can generate from any input sequence and see how the model works.
