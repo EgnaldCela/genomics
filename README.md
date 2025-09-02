@@ -9,16 +9,15 @@ Two experiments were run and respective code and results are stored in exp1, exp
 *GOAL:* See whether evo2 can correctly predict next token   
 *TASK:* I fed 2.5K token (base pair) length to evo2 model and asked it to generate the next 2.5K tokens.   
 *EVALUATION:* I used the eval metrics provided in the evo2 generation notebook on GitHub   
-*RESULTS:* I have to discuss different results based on the varying temperature of generation   
-At temp= 0.1, (more deterministic) very good similarity! (check plot)   
-At temp=0.5, fluctuating (I am not sure about interpretation)   
+*RESULTS:* Not desirable  
+
 
 
 #### Experiment 2
 *Experiment 2*: CENP-B box prediction   
 *GOAL:* See whether evo2 can predict cenp-b boxes.   
 *TASK:* I fed the first part of a sequence ending with a CENP-B box as prompt and generated from the model. Prompt length = generation length = 2.5K tokens (base pairs)   
-*ISSUE:* In the genome I am provided by Matteo I cannot seem to find CENP-B boxes. I have to check and make sure the why.   
+*RESULTS*: Not desirable
 
 
 ### TBD
