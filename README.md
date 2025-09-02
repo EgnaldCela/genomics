@@ -1,5 +1,6 @@
 # Genomics
-A repo made to store coding scripts, questions and tests for the genomics x ai honors program.
+Repository made to store coding scripts, questions and experiment results for the the Genomics x AI honors program.
+
 
 ### Results
 Two experiments were run and respective code and results are stored in exp1, exp2 directories   
