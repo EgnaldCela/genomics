@@ -5,11 +5,19 @@ import gzip
 import pandas as pd
 import torch
 from typing import List, Optional
-
+import random
+from tqdm.auto import tqdm
 
 def get_chr_section(fasta_file: str, start: int, length: int, chromosome_number: int) -> str:
     """
-    Extract a section of a given chromosome from a gzipped FASTA file.
+    Args: 
+        fasta_file, path to the zipped fasta file
+        start, the index where you start extracting a sequence from the full DNA sequence
+        length, is the length of the sequence you want to extract from the full DNA
+        chromosome_number, is the number of the chromosome you extract DNA from
+    
+    Returns: Extracted section from a starting index of a given chromosome from a gzipped FASTA file
+    
     """
     with gzip.open(fasta_file, "rt") as handle:
         for record in SeqIO.parse(handle, "fasta"):
@@ -17,22 +25,33 @@ def get_chr_section(fasta_file: str, start: int, length: int, chromosome_number:
             if record.id in [chromosome, str(chromosome_number)]:  
                 return str(record.seq[start:start+length]).upper()
 
-# taken from evo2 generation notebook
+
+
+# evaluation metrics taken from evo2 generation notebook
+# reference link https://github.com/ArcInstitute/evo2/blob/main/notebooks/generation/generation_notebook.ipynb
+
+
 def analyze_alignments(generated_seqs: List[str],
                        target_seqs: List[str],
                        names: Optional[List[str]] = None
                       ) -> List[dict]:
     """
-    Compute pairwise alignment metrics between generated and target sequences.
+    Args:
+        generated_seqs, a list of strings of generated sequences by the model
+        target_seqs, a list of strings of the true sequences extracted from the DNA
+        names, (optional) labels for each sequence
+
+    Returns:
+        A list of dicts, where each dictionary is a row of data, easier for pandas conversion
     """
     metrics = []
-    print("\nSequence Alignments:")
+    # print("\nSequence Alignments:")
 
     for i, (gen_seq, target_seq) in enumerate(zip(generated_seqs, target_seqs)):
         if names and i < len(names):
             print(f"\nAlignment {i+1} ({names[i]}):")
-        else:
-            print(f"\nAlignment {i+1}:")
+        # else:
+        #      # print(f"\nAlignment {i+1}:")
 
         gen_bio_seq = Seq(gen_seq)
         target_bio_seq = Seq(target_seq)
@@ -64,69 +83,122 @@ def analyze_alignments(generated_seqs: List[str],
 
     return metrics
 
-# main function, 
+# main function
 def test_chr_slice(fasta_file, model, start, length, prompt_len, chromosome_number):
     """
-    Load a slice of a given chromosome, generate continuation, and evaluate similarity.
-    """
-    # Extract sequence slice
-    sequence = get_chr_section(fasta_file, start=start, length=length, chromosome_number=chromosome_number)
+    Loads a slice of a given chromosome, generate continuation, and evaluate similarity.
 
-    # Prompt and target
+    Args:
+        fasta_file, path to the zipped fasta file
+        model, the evo2 loaded model
+        start, the index where you start extracting a sequence from the full DNA sequence
+        length, is the length of the sequence you want to extract from the full DNA
+        prompt_len, the number of base pairs you feed into the evo2 model
+        chromosome_number, is the number of the chromosome you extract DNA fro
+        
+    
+    Returns:
+        alignment_metrics, a pandas data frame with the eval metrics for the given sequence and generation
+        generation_temperature, the temperature of generation needed for csv file naming
+    """
+    # extract sequence 
+    sequence = get_chr_section(fasta_file=fasta_file, start=start, length=length, chromosome_number=chromosome_number)
+
+    # prompt and target
     prompt = sequence[:prompt_len]
     target = sequence[prompt_len:]
 
     print(f"Prompt length: {len(prompt)}, Target length: {len(target)}")
 
+    # set generation temperature
+    generation_temperature = 0.1
+
     # generate continuation
     output = model.generate(
         prompt_seqs=[prompt],
         n_tokens=len(target), # length - prompt_length
-        temperature=0.5, # aim for determinism 
+        temperature=generation_temperature, # aim for determinism 
         top_k=4
     )
+    
     generated_sequence = output.sequences[0]
 
-    # Compare
+    # evaluate metrics 
     alignment_metrics = analyze_alignments([generated_sequence], [target], [f"chr{str(chromosome_number)}_{start}"])
     
-    return pd.DataFrame(alignment_metrics)
+    return (pd.DataFrame(alignment_metrics), generation_temperature)
 
 
 if __name__ == "__main__":
+
+    # def generate_random_dna(length=100):
+    #     """Generate a random DNA sequence of given length using ACTG."""
+    #     return ''.join(random.choice("ACTG") for _ in range(length))
+
+
+
+    # mean = 0
+    # for _ in tqdm(range(1000)):
+        
+    #     rs1 = generate_random_dna()
+    #     rs2 = ''.join(random.choice("A") for _ in range(100))
+    #     # rs2 = ["A"]
+    #     l = (analyze_alignments([rs1], [rs2]))
+    #     mean += l[0]["similarity"]
     
+    # print(mean / 1000)
+
+    
+    # path to genome
     fasta_file = "../CHM13v2.0.fna.gz"
 
-    # Load model
+    # load model
     model = Evo2("evo2_7b")
 
     all_results = []
 
-    # Loop over chromosomes 1–22 + X
-    chromosomes = list(range(1, 23)) + ['X']
+    # define starting point and length
+    start = 1_000_000
+    length = 3_000
+    prompt_len = 2_500
 
-    for chrom in chromosomes:
+    # loop over chromosomes 1–22 + X
+    chromosomes = [i for i in range(1, 23)] + ['X']
+
+    # temperature
+    temperature = None
+
+    for chrom in tqdm(chromosomes):
         print(f"\n=== Processing chromosome {chrom} ===")
         try:
-            # Run slice test
-            df = test_chr_slice(
+            # run slice test
+            df_tuple = test_chr_slice(
                 fasta_file,
                 model,
-                start=1_000_000,
-                length=5_000, # change to 5_000
-                prompt_len=2_500, # change to 2500
+                start=start,
+                length=length, # change to 5_000
+                prompt_len=prompt_len, # change to 2500
                 chromosome_number = chrom
             )
-            # Update name to include chromosome
-            df['chromosome'] = chrom
-            all_results.append(df)
+            # udate name to include chromosome
+            # access the data frame (1st element)
+            df_tuple[0]['chromosome'] = chrom
+            all_results.append(df_tuple[0])
+            # pass the temperature value for the csv generation if it is not passed
+            if not temperature:
+                temperature = df_tuple[1] 
         except ValueError as e:
             print(f"Skipping chromosome {chrom}: {e}")
 
     # combine all results and save
     final_df = pd.concat(all_results, ignore_index=True)
-    final_df.to_csv("exp1_metrics_genlen2500_temp05.csv", index=False)
+    
+    # define csv file name
+    csv_path = f"exp1_metrics_genlen{length-prompt_len}_temp{temperature}_start{start}_copy03.csv"
+    
+    # save it as csv
+    final_df.to_csv(csv_path, index=False)
 
-    print("\nAll chromosome results saved to exp1_metrics_genlen2500_temp05.csv")
+    print(f"\nAll results saved in {csv_path}")
     print(final_df)
 

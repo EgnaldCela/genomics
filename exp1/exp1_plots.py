@@ -1,7 +1,8 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 
-df = pd.read_csv("exp1_metrics_genlen2500_temp05.csv")
+csv_path = "exp1_metrics_genlen2500_temp05.csv"
+df = pd.read_csv(csv_path)
 df['chromosome'] = df['chromosome'].astype(str)
 
 plt.figure(figsize=(12, 6))
