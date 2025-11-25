@@ -3,7 +3,7 @@ import torch
 import numpy as np
 from pathlib import Path
 
-from .dataset import ChromosomeDataLoader
+from dataloader import ChromosomeDataLoader
 
 
 class ChromosomeRankingDataLoader(ChromosomeDataLoader):
@@ -160,7 +160,7 @@ if __name__ == "__main__":
     ranking_loader = ChromosomeRankingDataLoader(data_dir="/media/pinas/egnald/genomics/data/T2T")
     
     X_rank, y_rank, groups, meta_rank = ranking_loader.load_ranking_data(
-        individuals=["HG03521"],
+        individuals=["HG002v1.1", "I002Cv0.7"],
         chromosomes=["chr1", "chr2"],
         haplotypes=["hap1"],
         noise_type="gaussian",

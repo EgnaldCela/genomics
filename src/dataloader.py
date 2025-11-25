@@ -8,6 +8,7 @@ import numpy as np
 from pathlib import Path
 
 
+
 class ChromosomeDataLoader:
     """
     SKLearn-compatible data loader for chromosome sequences.
@@ -51,6 +52,7 @@ class ChromosomeDataLoader:
         Args:
             sequence: Torch tensor of sequence distances
             max_val: Maximum value for histogram bins. If None, uses max of sequence.
+                     Values exceeding max_val are clipped to max_val.
         
         Returns:
             Normalized histogram as torch tensor (probability distribution)
@@ -58,17 +60,25 @@ class ChromosomeDataLoader:
         sequence = torch.as_tensor(sequence, dtype=torch.int64)
         
         # Compute max_val if not provided
-        local_max = int(torch.max(sequence).item()) if max_val is None else int(max_val)
+        if max_val is None:
+            local_max = int(torch.max(sequence).item())
+        else:
+            local_max = int(max_val)
+            # Clip values that exceed max_val
+            sequence = torch.clamp(sequence, max=local_max)
         
         # Build histogram
         bins = local_max + 1
         hist = torch.bincount(sequence, minlength=bins).float()
         
+        # Ensure exact size (trim if necessary)
+        hist = hist[:bins]
+        
         # Normalize to probability distribution
         hist = hist / hist.sum()
         
-        return hist
-        
+        return hist       
+
     def load_data(self, individuals=None, chromosomes=None, haplotypes=None, 
                   pad_length=None, return_tensors=False, as_distribution=False, max_val=None):
         """
@@ -82,6 +92,7 @@ class ChromosomeDataLoader:
             return_tensors: If True, return torch tensors; otherwise numpy arrays.
             as_distribution: If True, convert sequences to normalized histograms.
             max_val: Maximum value for histogram bins (only used if as_distribution=True).
+                     If None and as_distribution=True, uses the max across all sequences.
         
         Returns:
             X: Array/tensor of sequences or distributions, shape (n_samples, seq_length or n_bins)
@@ -98,6 +109,26 @@ class ChromosomeDataLoader:
         
         # Map individuals to integer labels
         individual_to_label = {ind: i for i, ind in enumerate(individuals)}
+        
+        # If as_distribution and max_val is None, we need to find the global max first
+        global_max = None
+        if as_distribution and max_val is None:
+            for individual in individuals:
+                filepath = self.data_dir / f"{individual}.pt"
+                if not filepath.exists():
+                    continue
+                genome_dict = torch.load(filepath, weights_only=True)
+                for key, sequence in genome_dict.items():
+                    _, hap, chrom = key
+                    if chromosomes is not None and chrom not in chromosomes:
+                        continue
+                    if haplotypes is not None and hap not in haplotypes:
+                        continue
+                    seq = sequence.cpu() if isinstance(sequence, torch.Tensor) else torch.tensor(sequence)
+                    seq_max = int(torch.max(seq).item())
+                    if global_max is None or seq_max > global_max:
+                        global_max = seq_max
+            max_val = global_max
         
         for individual in individuals:
             filepath = self.data_dir / f"{individual}.pt"
@@ -140,7 +171,7 @@ class ChromosomeDataLoader:
             X = torch.stack(X_list) if X_list else torch.empty(0)
             y = torch.tensor(y_list, dtype=torch.long)
         else:
-            X = np.array([s.numpy() for s in X_list]) if X_list else np.empty((0, 0))
+            X = np.stack([s.numpy() for s in X_list]) if X_list else np.empty((0, 0))
             y = np.array(y_list, dtype=np.int64)
         
         return X, y, metadata
@@ -196,6 +227,7 @@ class ChromosomeDataLoader:
             print(f"  Example sequence length: {len(sample_dict[sample_key])}")
 
 
+
 # Example usage
 if __name__ == "__main__":
     # Initialize loader
@@ -208,7 +240,7 @@ if __name__ == "__main__":
     print("Example 1: Load raw sequences with padding")
     print("="*60)
     X, y, metadata = loader.load_data(
-        individuals=["HG03521"],
+        individuals=["I002Cv0.7"],
         chromosomes=["chr1", "chr2"],
         haplotypes=["hap1"],
         pad_length=10000
@@ -220,7 +252,7 @@ if __name__ == "__main__":
     print("Example 2: Load as distributions (histograms)")
     print("="*60)
     X_dist, y_dist, metadata_dist = loader.load_data(
-        individuals=["HG03521"],
+            individuals=["I002Cv0.7"],
         chromosomes=["chr1", "chr2"],
         haplotypes=["hap1"],
         as_distribution=True,
@@ -234,7 +266,7 @@ if __name__ == "__main__":
     print("Example 3: Get single chromosome as distribution")
     print("="*60)
     single_dist = loader.get_chromosome(
-        "HG03521", "chr1", "hap1", 
+        "I002Cv0.7", "chr1", "hap1", 
         as_distribution=True, 
         max_val=5000
     )
