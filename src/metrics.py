@@ -40,8 +40,8 @@ def jaccard(arr1_hist, arr2_hist):
     Given two tensors each representing a distribution over values, it returns the jaccard distance.
     """
     # move to CPU or GPU if needed
-    arr1_hist = arr1_hist.to("cuda:0")
-    arr2_hist = arr2_hist.to("cuda:0")
+    arr1_hist = arr1_hist.to("cpu")
+    arr2_hist = arr2_hist.to("cpu")
 
     # Make both histograms the same length
     max_len = max(arr1_hist.shape[0], arr2_hist.shape[0])
@@ -131,4 +131,10 @@ def kl_similarity_symmetric(p, q, eps=1e-12):
     value = kl_divergence_symmetric(p, q, eps=eps)
     similarity = torch.exp(-value)
     return similarity
+
+def unbounded_kl_distance(p, q, eps=1e-12):
+    """
+    Returns the symmetric KL divergence as a distance metric (unbounded).
+    """
+    return kl_divergence_symmetric(p, q, eps=eps)
 
