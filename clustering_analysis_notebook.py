@@ -74,7 +74,7 @@ for name, metric_func in metrics.items():
         if name == 'KL_Non_Symmetric':
              dist_matrix = (dist_matrix + dist_matrix.T) / 2
         
-        tsne = TSNE(n_components=2, metric='precomputed', init='random', random_state=9)
+        tsne = TSNE(n_components=2, metric='precomputed', init='random', random_state=8)
         coords = tsne.fit_transform(dist_matrix)
     else:
         # Euclidean case on histograms
@@ -107,7 +107,7 @@ for name, metric_func in metrics.items():
     plot_embedding(
         coords, 
         labels, 
-        title=f"t-SNE with {name}", 
+        # title=f"t-SNE with {name}", 
         filename=f"tsne_{name.lower()}.png", 
         show_labels=True # Show text labels for the best metric
     )

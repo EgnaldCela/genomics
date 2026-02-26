@@ -17,9 +17,9 @@ def plot_embedding(coords, labels, title=None, filename=None, show_labels=False,
     coords_jittered = coords + np.random.normal(0, .4, size=coords.shape) 
     
     ax = sns.scatterplot(
-        x=coords_jittered[:, 0], y=coords_jittered[:, 1], 
+        x=coords_jittered[:, 0], y=coords_jittered[:, 1] +1 , 
         hue=labels,
-        palette=palette, s=120,
+        palette=palette, s=140,
         legend=not show_labels # If we show text labels, we usually don't need the legend
     )
     
@@ -33,14 +33,14 @@ def plot_embedding(coords, labels, title=None, filename=None, show_labels=False,
                 plt.text(
                     centroid[0], centroid[1], 
                     str(label), 
-                    fontsize=11, 
+                    fontsize=15, 
                     fontweight='bold',
                     ha='center', va='center',
                     bbox=dict(facecolor='white', alpha=0.5, edgecolor='none', boxstyle='round,pad=0.2')
                 )
     
     if title:
-        plt.title(title)
+        plt.title(title, fontsize=18)
         
     plt.xticks([])
     plt.yticks([])
