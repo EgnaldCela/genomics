@@ -3,17 +3,23 @@ import torch
 import matplotlib.pyplot as plt
 import seaborn as sns
 from scores import *
+import os
 
 
 current_device = "cuda" if torch.cuda.is_available() else "cpu"
 
 
-# Plot scores of a given metric BETWEEN chromosomes of a given individual 
-# ASSUMES GENOME IS ALREADY FILTERED OUT meaning you have fixed individual and hap
 def plot_chromosomes(genome, plot_title=None, metric=None, device=current_device):
+    """
+    Compares all chromosomes of a given genome against each other
+    Outputs 22x22 matrix where entry[i,j] is the score of chromosome i of genome computed with respect to chromosome j
 
-    # genome is a dictionary
-    # {(CHM13, hap1, chr2): torch.tensor[123, 231, ...]}
+    Args:   
+        genome: a dictionary with tensors belonging only to a single haplotype
+                assumes you have filtered by haplotype before passing it to the function
+    """
+
+    # genome is a dictionary {(CHM13, hap1, chr2): torch.tensor[123, 231, ...]}
     chromosomes = [key for key in genome.keys() if ("X" not in key[2]) and ("Y" not in key[2])]
     chromosomes.sort(key=lambda x: (len(x[2]), x[2]))
 
@@ -28,7 +34,7 @@ def plot_chromosomes(genome, plot_title=None, metric=None, device=current_device
     # initialize matrix with zeros to begin with
     matrix = np.zeros((n, n))
     
-    # assume you have a list of 23 tensors (one for each chromosome)
+    # assume you have a list of 22 tensors (one for each chromosome)
     l = [genome[key].to(device) for key in chromosomes]
 
     # Compute pairwise distances
@@ -64,7 +70,7 @@ def plot_chromosomes(genome, plot_title=None, metric=None, device=current_device
     # Plot heatmap
     plt.figure(figsize=(12, 10))
     sns.heatmap(matrix, xticklabels=labels, yticklabels=labels, cmap="Blues",
-                square=True, annot=True, fmt=".2f")
+                square=True, annot=True, fmt=".3f")
     plt.title(plot_title if plot_title else "")
     plt.xticks(rotation=90)
     plt.yticks(rotation=0)
@@ -76,10 +82,22 @@ def plot_chromosomes(genome, plot_title=None, metric=None, device=current_device
 
 
 
-# Scores same chromosomes among individuals
-# assumes genome_list has each genome already filtered, meaning you have fixed the chromosome and hap
 
-def plot_chromosomes_across_genomes(genome_list, plot_title=None, metric=None, device=current_device):
+
+def plot_chromosomes_across_genomes(genome_list, plot_title=None, metric=None, device=current_device, save=False, save_path=None, save_title=None):
+    """
+    Given a list of genomes, it scores a single chromosome among those genomes
+    Assumes genome_list has each genome already filtered, meaning you have fixed the chromosome and hap
+
+    Args:
+        genome_list: list of genomes where for each genome chromosome and hap you have filtered the chromosome beforehand
+        and the haplotype as well
+        plot_title: The title to display at the top of the heatmap
+        save (bool, optional): If `True`, the generated heatmap will be saved to disk. Defaults to `False`.
+        save_path (str, optional): The directory path where the plot should be saved. Required if `save=True`.
+        save_title (str, optional): The filename for the saved plot (e.g., 'comparison_plot.png'). Required if `save=True`
+
+    """
 
 
     if metric is None:
@@ -93,6 +111,7 @@ def plot_chromosomes_across_genomes(genome_list, plot_title=None, metric=None, d
     labels = []
 
     for genome in genome_list:
+        assert len(genome) == 1, f"Expected exactly 1 chromosome in genome dict, found {len(genome)}"
         for k,v in genome.items():
             chrom_tensors.append(v.to(device))
             labels.append(f"{k[0]}-{k[1]}-{k[2]}")
@@ -114,13 +133,6 @@ def plot_chromosomes_across_genomes(genome_list, plot_title=None, metric=None, d
             matrix[i, j] = metric(arr1_pad, arr2_pad)
             matrix[j, i] = metric(arr2_pad, arr1_pad)  # not always symmetric
     
-    # # Accuracy
-    # vals = matrix.flatten()
-    # mean = np.mean(vals)
-    # std = np.std(vals)
-    # consistency_score = mean / (mean + std + 1e-9)
-
-    # print(f"Consistency score: {consistency_score.item():.3f}")
 
     # Plot heatmap
     plt.figure(figsize=(12, 10))
@@ -130,15 +142,56 @@ def plot_chromosomes_across_genomes(genome_list, plot_title=None, metric=None, d
     plt.xticks(rotation=90)
     plt.yticks(rotation=0)
     plt.tight_layout()
+
+    if save:
+        if save_path and save_title:
+            # Create the directory if it doesn't exist
+            os.makedirs(save_path, exist_ok=True)
+            
+            # Ensure the title has a file extension, default to .png
+            if not any(save_title.endswith(ext) for ext in ['.png', '.jpg', '.jpeg', '.pdf', '.svg']):
+                save_title += ".png"
+                
+            full_path = os.path.join(save_path, save_title)
+            
+            # Save the plot
+            plt.savefig(full_path, bbox_inches='tight', dpi=300)
+            print(f"Plot saved successfully to: {full_path}")
+        else:
+            print("Warning: Both 'save_path' and 'save_title' must be provided to save the plot.")
+
     plt.show()
 
     return matrix
 
 
 
-# ASSUMES BOTH GENOMES ARE ALREADY FILTERED OUT (HAP1 is differentiated from HAP2)
 
-def plot_chromosomes_two_genomes(genome1, genome2, plot_title=None, metric=None, device=current_device):
+def plot_chromosomes_two_genomes(genome1, genome2, plot_title=None, metric=None, device=current_device, save=False, save_path=None, save_title=None):
+
+    """
+    Compares all chromosomes of a given genome against chromosomes of another chromosome
+    Outputs 22x22 matrix where entry[i,j] is the score of chromosome i of genome 1
+    computed with respect to chromosome j of genome 2
+
+    In case of KL, keep in mind that genome 2 is assumed to be the reference genome (p)
+
+    Assumes both genomes are already filtered out, hap2 is differentiated from hap1 
+
+    Args:   
+        genome1: a dictionary with tensors belonging only to a single haplotype
+                assumes you have filtered by haplotype before passing it to the function
+        genome2: the true genome
+        plot_title: The title to display at the top of the heatmap
+        save (bool, optional): If `True`, the generated heatmap will be saved to disk. Defaults to `False`.
+        save_path (str, optional): The directory path where the plot should be saved. Required if `save=True`.
+        save_title (str, optional): The filename for the saved plot (e.g., 'comparison_plot.png'). Required if `save=True`
+    
+    Returns:
+        numpy.ndarray: A 22x22 matrix containing the pairwise metric scores between the chromosomes 
+                        of genome2 (rows) and genome1 (columns).
+
+    """
 
     # genome2 is the true distribution!!
     
@@ -196,14 +249,6 @@ def plot_chromosomes_two_genomes(genome1, genome2, plot_title=None, metric=None,
             matrix[i, j] = metric(arr2_padded, arr1_padded)
     
 
-    # HERE WE HAVE THE MATRIX and we can calculate the "score"
-
-    frobenius_score = frobenius_norm(matrix)
-    entropy_score = entropy(matrix)
-    info_nce_score = info_nce(matrix)
-
-    print(f"Average Entropy (max value log(22)=3.09: {entropy_score:.3f} \n Frobenius Norm: {frobenius_score:.3f} \n Info-NCE Loss: {info_nce_score:.3f}")
-
     
     labels1 = [f"{k[0]}-{k[1]}-{k[2]}" for k in chromosomes2]  # Genome 2 (Rows -> Y-axis)
     labels2 = [f"{k[0]}-{k[1]}-{k[2]}" for k in chromosomes1]  # Genome 1 (Cols -> X-axis)
@@ -227,17 +272,24 @@ def plot_chromosomes_two_genomes(genome1, genome2, plot_title=None, metric=None,
     plt.xticks(rotation=90)
     plt.yticks(rotation=0)
     plt.tight_layout()
-    
-    # plt.subplots_adjust(right=0.95)
-    
-    # stats_text = f"Frobenius Norm: {frobenius_score:.4f}\nEntropy: {entropy_score:.4f}"
-    
-    # plt.text(1.00, 0.5, stats_text, 
-    #          transform=plt.gca().transAxes, 
-    #          fontsize=8, 
-    #          verticalalignment='center', 
-    #          bbox=dict(boxstyle="round,pad=0.5", facecolor="white", edgecolor="black", alpha=0.8))
-    
+
+    if save:
+        if save_path and save_title:
+            # Create the directory if it doesn't exist
+            os.makedirs(save_path, exist_ok=True)
+            
+            # Ensure the title has a file extension, default to .png
+            if not any(save_title.endswith(ext) for ext in ['.png', '.jpg', '.jpeg', '.pdf', '.svg']):
+                save_title += ".png"
+                
+            full_path = os.path.join(save_path, save_title)
+            
+            # Save the plot
+            plt.savefig(full_path, bbox_inches='tight', dpi=300)
+            print(f"Plot saved successfully to: {full_path}")
+        else:
+            print("Warning: Both 'save_path' and 'save_title' must be provided to save the plot.")
+
     plt.show()
 
     return matrix

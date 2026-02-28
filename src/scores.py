@@ -1,18 +1,21 @@
 """
 This file is used to define "scores" that evaluate the performance of a matrix
 
-Input: A matrix of similarities (Jaccard, KL)
+Input: A matrix of similarities (Jaccard, KL) of genome vs genome plot
 Output: Score (int)
-"""
 
 
-"""
-IDEAS:
-1. Frobenius Norm
-2. Entropy 
+1. Frobenius Norm from identity (minimize)
+2. Average of row-wise entropies (minimize)
+3. InfoNCE 
+4. Trace_ratio (maximize it)
+5. Variance (average row-wise)
 """
 
 import numpy as np
+
+def trace_ratio(X):
+    return np.trace(X) / (np.sum(np.abs(X)) + 1e-9)
 
 def frobenius_norm(X):
 
@@ -22,6 +25,16 @@ def frobenius_norm(X):
 
     return score
 
+
+def average_row_variance(X):
+    """
+    Computes the variance for each row and returns the average across all rows.
+    """
+    # Calculate variance along each row (axis=1)
+    row_vars = np.var(X, axis=1)
+    
+    # Return the average of those row variances
+    return np.mean(row_vars)
 
 def entropy(X):
 
@@ -77,8 +90,24 @@ def symmetric_info_nce(X, temperature=0.1):
     loss_cols = info_nce(X.T, temperature)
     return (loss_rows + loss_cols) / 2
 
-if __name__ == "__main__":
-    x = np.random.randint(3,5, size=(3,3))
+
+def evaluate_matrix(matrix):
+
+    frobenius_score = frobenius_norm(matrix)
+    entropy_score = entropy(matrix)
+    info_nce_score = info_nce(matrix)
+    variance = average_row_variance(matrix)
+    trace_ratio = trace_ratio(matrix)
+
+    print(
+        f"Average Entropy (max value log(22)=3.09: {entropy_score:.3f} \n \
+          Frobenius Norm: {frobenius_score:.3f} \n  \
+          Info-NCE Loss: {info_nce_score:.3f} \
+          Variance: {variance:.3f} \
+          Trace Ratio: {trace_ratio:.3f}"
+          )
     
-    print(np.log(22))
+    return None
+
+
 
