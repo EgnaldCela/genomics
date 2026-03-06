@@ -1,6 +1,24 @@
 # Genomics
 Repository made to store coding scripts, questions and experiment results for the the Genomics x AI honors program.
 
+### Active analysis entrypoints
+- `scripts/analysis/threshold_heatmaps.py`: threshold analysis and threshold-centered heatmap plotting.
+- `scripts/analysis/interactive_tsne.py`: interactive Plotly t-SNE generation.
+- `scripts/analysis/multiple_genomes_heatmap.py`: multi-genome CENP-B distance heatmap generation.
+- `scripts/analysis/robustness_contamination.py`: contamination robustness analysis against CHM13.
+
+### Active generated outputs
+- `outputs/analysis/clusterings/`: interactive t-SNE HTML outputs.
+- `outputs/analysis/heatmaps_hybrid/`: separability summaries and threshold-centered heatmaps.
+- `outputs/analysis/multiple_genomes/`: multi-genome heatmap figures.
+- `outputs/analysis/robustness/`: contamination robustness plots.
+
+### Legacy archive
+- Deprecated scripts are kept under `legacy/root_scripts/` and `legacy/notebooks/`.
+- This preserves old workflows while keeping the root folder focused on current entrypoints.
+- To regenerate the legacy multi-genome heatmap workflow, run `scripts/legacy/generate_multiple_genomes_heatmap.py`.
+- Noise robustness workflow is treated as legacy (`robustness_analysis.py`).
+
 
 ### Results
 Two experiments were run and respective code and results are stored in exp1, exp2 directories   

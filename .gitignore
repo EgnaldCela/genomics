@@ -2,3 +2,7 @@ __pycache__/
 *.pyc
 *.pyo
 plots/
+outputs/
+legacy/
+data/
+.vscode/
